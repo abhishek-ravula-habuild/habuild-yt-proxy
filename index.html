@@ -80,12 +80,16 @@
             3: "buffering",
             5: "cued",
           };
+          var videoData = window.ytPlayer.getVideoData ? window.ytPlayer.getVideoData() : {};
+          var duration = window.ytPlayer.getDuration();
+          var isLive = !!(videoData.isLive) || duration === 0;
           notifyParent("playerState", {
             state: states[state] || "unknown",
             currentTime: window.ytPlayer.getCurrentTime(),
-            duration: window.ytPlayer.getDuration(),
+            duration: duration,
             volume: window.ytPlayer.getVolume(),
             muted: window.ytPlayer.isMuted(),
+            isLive: isLive,
           });
         } catch (e) {}
       }
