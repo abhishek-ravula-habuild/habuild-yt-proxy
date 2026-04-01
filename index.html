@@ -6,17 +6,40 @@
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <title>Habuild TV Player</title>
     <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
-      #player { width: 100%; height: 100%; }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #000;
+      }
+      #player {
+        width: 100%;
+        height: 100%;
+      }
       #error {
         display: none;
-        position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-        color: #ff4444; font-family: monospace; font-size: 24px;
-        justify-content: center; align-items: center;
-        flex-direction: column; gap: 12px;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        color: #ff4444;
+        font-family: monospace;
+        font-size: 24px;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        gap: 12px;
       }
-      #error.visible { display: flex; }
+      #error.visible {
+        display: flex;
+      }
     </style>
   </head>
   <body>
@@ -29,13 +52,17 @@
 
       if (!videoId) {
         document.getElementById("error").classList.add("visible");
-        document.getElementById("error").textContent = "Error: No video ID (?v=VIDEO_ID)";
+        document.getElementById("error").textContent =
+          "Error: No video ID (?v=VIDEO_ID)";
       }
 
       function notifyParent(type, data) {
         try {
           if (window.parent && window.parent !== window) {
-            window.parent.postMessage(JSON.stringify({ type: type, ...data }), "*");
+            window.parent.postMessage(
+              JSON.stringify({ type: type, ...data }),
+              "*",
+            );
           }
         } catch (e) {}
       }
@@ -45,7 +72,14 @@
         if (!window.ytPlayer || !window.ytPlayer.getCurrentTime) return;
         try {
           var state = window.ytPlayer.getPlayerState();
-          var states = { "-1": "unstarted", 0: "ended", 1: "playing", 2: "paused", 3: "buffering", 5: "cued" };
+          var states = {
+            "-1": "unstarted",
+            0: "ended",
+            1: "playing",
+            2: "paused",
+            3: "buffering",
+            5: "cued",
+          };
           notifyParent("playerState", {
             state: states[state] || "unknown",
             currentTime: window.ytPlayer.getCurrentTime(),
@@ -65,27 +99,41 @@
 
           switch (msg.command) {
             case "play":
-              p.playVideo(); break;
+              p.playVideo();
+              break;
             case "pause":
-              p.pauseVideo(); break;
+              p.pauseVideo();
+              break;
             case "togglePlay":
               var s = p.getPlayerState();
-              if (s === 1) p.pauseVideo(); else p.playVideo();
+              if (s === 1) p.pauseVideo();
+              else p.playVideo();
               break;
             case "stop":
-              p.stopVideo(); break;
+              p.stopVideo();
+              break;
             case "seekForward":
-              p.seekTo(p.getCurrentTime() + (msg.seconds || 10), true); break;
+              p.seekTo(p.getCurrentTime() + (msg.seconds || 10), true);
+              break;
             case "seekBackward":
-              p.seekTo(Math.max(0, p.getCurrentTime() - (msg.seconds || 10)), true); break;
+              p.seekTo(
+                Math.max(0, p.getCurrentTime() - (msg.seconds || 10)),
+                true,
+              );
+              break;
             case "volumeUp":
-              p.setVolume(Math.min(100, p.getVolume() + 10)); break;
+              p.setVolume(Math.min(100, p.getVolume() + 10));
+              break;
             case "volumeDown":
-              p.setVolume(Math.max(0, p.getVolume() - 10)); break;
+              p.setVolume(Math.max(0, p.getVolume() - 10));
+              break;
             case "toggleMute":
-              if (p.isMuted()) p.unMute(); else p.mute(); break;
+              if (p.isMuted()) p.unMute();
+              else p.mute();
+              break;
             case "getState":
-              sendPlayerState(); break;
+              sendPlayerState();
+              break;
           }
         } catch (e) {}
       });
@@ -108,9 +156,6 @@
             modestbranding: 1,
             rel: 0,
             fs: 0,
-            disablekb: 1,
-            iv_load_policy: 3,
-            showinfo: 0,
             enablejsapi: 1,
             origin: window.location.origin,
           },
@@ -125,10 +170,18 @@
               notifyParent("error", { code: event.data, videoId: videoId });
               var errorEl = document.getElementById("error");
               errorEl.classList.add("visible");
-              errorEl.innerHTML = "YouTube Error: " + event.data + "<br>Video: " + videoId;
+              errorEl.innerHTML =
+                "YouTube Error: " + event.data + "<br>Video: " + videoId;
             },
             onStateChange: function (event) {
-              var states = { "-1": "unstarted", 0: "ended", 1: "playing", 2: "paused", 3: "buffering", 5: "cued" };
+              var states = {
+                "-1": "unstarted",
+                0: "ended",
+                1: "playing",
+                2: "paused",
+                3: "buffering",
+                5: "cued",
+              };
               notifyParent("stateChange", {
                 state: states[event.data] || event.data,
                 videoId: videoId,
