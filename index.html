@@ -1,103 +1,139 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="referrer" content="strict-origin-when-cross-origin" />
-  <title>Habuild TV Player</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
-    #player { width: 100%; height: 100%; }
-    #error {
-      display: none;
-      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-      color: #ff4444; font-family: monospace; font-size: 24px;
-      display: flex; justify-content: center; align-items: center;
-      flex-direction: column; gap: 12px;
-    }
-  </style>
-</head>
-<body>
-  <div id="player"></div>
-  <div id="error"></div>
-
-  <script>
-    // Read video ID from URL params: ?v=VIDEO_ID
-    const params = new URLSearchParams(window.location.search);
-    const videoId = params.get('v');
-
-    if (!videoId) {
-      document.getElementById('error').style.display = 'flex';
-      document.getElementById('error').textContent = 'Error: No video ID provided (?v=VIDEO_ID)';
-    }
-
-    // Notify parent (Tizen app) of events via postMessage
-    function notifyParent(type, data) {
-      try {
-        if (window.parent && window.parent !== window) {
-          window.parent.postMessage(JSON.stringify({ type, ...data }), '*');
-        }
-      } catch (e) {
-        // ignore cross-origin postMessage errors
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <title>Habuild TV Player</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
       }
-    }
-
-    // Listen for commands from parent (Tizen app)
-    window.addEventListener('message', function(event) {
-      try {
-        const msg = JSON.parse(event.data);
-        if (msg.command === 'pause' && window.ytPlayer) {
-          window.ytPlayer.pauseVideo();
-        } else if (msg.command === 'play' && window.ytPlayer) {
-          window.ytPlayer.playVideo();
-        } else if (msg.command === 'stop' && window.ytPlayer) {
-          window.ytPlayer.stopVideo();
-        }
-      } catch (e) {
-        // ignore
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #000;
       }
-    });
+      #player {
+        width: 100%;
+        height: 100%;
+      }
+      #error {
+        display: none;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        color: #ff4444;
+        font-family: monospace;
+        font-size: 24px;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        gap: 12px;
+      }
+      #error.visible {
+        display: flex;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="player"></div>
+    <div id="error"></div>
 
-    // Load YouTube IFrame API
-    var tag = document.createElement('script');
-    tag.src = 'https://www.youtube.com/iframe_api';
-    document.head.appendChild(tag);
+    <script>
+      // Read video ID from URL params: ?v=VIDEO_ID
+      const params = new URLSearchParams(window.location.search);
+      const videoId = params.get("v");
 
-    function onYouTubeIframeAPIReady() {
-      if (!videoId) return;
+      if (!videoId) {
+        document.getElementById("error").classList.add("visible");
+        document.getElementById("error").textContent =
+          "Error: No video ID provided (?v=VIDEO_ID)";
+      }
 
-      window.ytPlayer = new YT.Player('player', {
-        width: '100%',
-        height: '100%',
-        videoId: videoId,
-        playerVars: {
-          autoplay: 1,
-          controls: 1,
-          modestbranding: 1,
-          rel: 0,
-          fs: 0,
-          enablejsapi: 1,
-          origin: window.location.origin
-        },
-        events: {
-          onReady: function(event) {
-            notifyParent('ready', { videoId: videoId });
-            event.target.playVideo();
-          },
-          onError: function(event) {
-            notifyParent('error', { code: event.data, videoId: videoId });
-            var errorEl = document.getElementById('error');
-            errorEl.style.display = 'flex';
-            errorEl.innerHTML = 'YouTube Error: ' + event.data + '<br>Video: ' + videoId;
-          },
-          onStateChange: function(event) {
-            var states = { '-1': 'unstarted', 0: 'ended', 1: 'playing', 2: 'paused', 3: 'buffering', 5: 'cued' };
-            notifyParent('stateChange', { state: states[event.data] || event.data, videoId: videoId });
+      // Notify parent (Tizen app) of events via postMessage
+      function notifyParent(type, data) {
+        try {
+          if (window.parent && window.parent !== window) {
+            window.parent.postMessage(JSON.stringify({ type, ...data }), "*");
           }
+        } catch (e) {
+          // ignore cross-origin postMessage errors
+        }
+      }
+
+      // Listen for commands from parent (Tizen app)
+      window.addEventListener("message", function (event) {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.command === "pause" && window.ytPlayer) {
+            window.ytPlayer.pauseVideo();
+          } else if (msg.command === "play" && window.ytPlayer) {
+            window.ytPlayer.playVideo();
+          } else if (msg.command === "stop" && window.ytPlayer) {
+            window.ytPlayer.stopVideo();
+          }
+        } catch (e) {
+          // ignore
         }
       });
-    }
-  </script>
-</body>
+
+      // Load YouTube IFrame API
+      var tag = document.createElement("script");
+      tag.src = "https://www.youtube.com/iframe_api";
+      document.head.appendChild(tag);
+
+      function onYouTubeIframeAPIReady() {
+        if (!videoId) return;
+
+        window.ytPlayer = new YT.Player("player", {
+          width: "100%",
+          height: "100%",
+          videoId: videoId,
+          playerVars: {
+            autoplay: 1,
+            controls: 1,
+            modestbranding: 1,
+            rel: 0,
+            fs: 0,
+            enablejsapi: 1,
+            origin: window.location.origin,
+          },
+          events: {
+            onReady: function (event) {
+              notifyParent("ready", { videoId: videoId });
+              event.target.playVideo();
+            },
+            onError: function (event) {
+              notifyParent("error", { code: event.data, videoId: videoId });
+              var errorEl = document.getElementById("error");
+              errorEl.classList.add("visible");
+              errorEl.innerHTML =
+                "YouTube Error: " + event.data + "<br>Video: " + videoId;
+            },
+            onStateChange: function (event) {
+              var states = {
+                "-1": "unstarted",
+                0: "ended",
+                1: "playing",
+                2: "paused",
+                3: "buffering",
+                5: "cued",
+              };
+              notifyParent("stateChange", {
+                state: states[event.data] || event.data,
+                videoId: videoId,
+              });
+            },
+          },
+        });
+      }
+    </script>
+  </body>
 </html>
