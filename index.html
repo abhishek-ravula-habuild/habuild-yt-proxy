@@ -6,40 +6,17 @@
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <title>Habuild TV Player</title>
     <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-      html,
-      body {
-        width: 100%;
-        height: 100%;
-        overflow: hidden;
-        background: #000;
-      }
-      #player {
-        width: 100%;
-        height: 100%;
-      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+      #player { width: 100%; height: 100%; }
       #error {
         display: none;
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        color: #ff4444;
-        font-family: monospace;
-        font-size: 24px;
-        justify-content: center;
-        align-items: center;
-        flex-direction: column;
-        gap: 12px;
+        position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+        color: #ff4444; font-family: monospace; font-size: 24px;
+        justify-content: center; align-items: center;
+        flex-direction: column; gap: 12px;
       }
-      #error.visible {
-        display: flex;
-      }
+      #error.visible { display: flex; }
     </style>
   </head>
   <body>
@@ -47,41 +24,70 @@
     <div id="error"></div>
 
     <script>
-      // Read video ID from URL params: ?v=VIDEO_ID
-      const params = new URLSearchParams(window.location.search);
-      const videoId = params.get("v");
+      var params = new URLSearchParams(window.location.search);
+      var videoId = params.get("v");
 
       if (!videoId) {
         document.getElementById("error").classList.add("visible");
-        document.getElementById("error").textContent =
-          "Error: No video ID provided (?v=VIDEO_ID)";
+        document.getElementById("error").textContent = "Error: No video ID (?v=VIDEO_ID)";
       }
 
-      // Notify parent (Tizen app) of events via postMessage
       function notifyParent(type, data) {
         try {
           if (window.parent && window.parent !== window) {
-            window.parent.postMessage(JSON.stringify({ type, ...data }), "*");
+            window.parent.postMessage(JSON.stringify({ type: type, ...data }), "*");
           }
-        } catch (e) {
-          // ignore cross-origin postMessage errors
-        }
+        } catch (e) {}
+      }
+
+      // Send current player state to parent
+      function sendPlayerState() {
+        if (!window.ytPlayer || !window.ytPlayer.getCurrentTime) return;
+        try {
+          var state = window.ytPlayer.getPlayerState();
+          var states = { "-1": "unstarted", 0: "ended", 1: "playing", 2: "paused", 3: "buffering", 5: "cued" };
+          notifyParent("playerState", {
+            state: states[state] || "unknown",
+            currentTime: window.ytPlayer.getCurrentTime(),
+            duration: window.ytPlayer.getDuration(),
+            volume: window.ytPlayer.getVolume(),
+            muted: window.ytPlayer.isMuted(),
+          });
+        } catch (e) {}
       }
 
       // Listen for commands from parent (Tizen app)
       window.addEventListener("message", function (event) {
         try {
-          const msg = JSON.parse(event.data);
-          if (msg.command === "pause" && window.ytPlayer) {
-            window.ytPlayer.pauseVideo();
-          } else if (msg.command === "play" && window.ytPlayer) {
-            window.ytPlayer.playVideo();
-          } else if (msg.command === "stop" && window.ytPlayer) {
-            window.ytPlayer.stopVideo();
+          var msg = JSON.parse(event.data);
+          var p = window.ytPlayer;
+          if (!p) return;
+
+          switch (msg.command) {
+            case "play":
+              p.playVideo(); break;
+            case "pause":
+              p.pauseVideo(); break;
+            case "togglePlay":
+              var s = p.getPlayerState();
+              if (s === 1) p.pauseVideo(); else p.playVideo();
+              break;
+            case "stop":
+              p.stopVideo(); break;
+            case "seekForward":
+              p.seekTo(p.getCurrentTime() + (msg.seconds || 10), true); break;
+            case "seekBackward":
+              p.seekTo(Math.max(0, p.getCurrentTime() - (msg.seconds || 10)), true); break;
+            case "volumeUp":
+              p.setVolume(Math.min(100, p.getVolume() + 10)); break;
+            case "volumeDown":
+              p.setVolume(Math.max(0, p.getVolume() - 10)); break;
+            case "toggleMute":
+              if (p.isMuted()) p.unMute(); else p.mute(); break;
+            case "getState":
+              sendPlayerState(); break;
           }
-        } catch (e) {
-          // ignore
-        }
+        } catch (e) {}
       });
 
       // Load YouTube IFrame API
@@ -109,23 +115,17 @@
             onReady: function (event) {
               notifyParent("ready", { videoId: videoId });
               event.target.playVideo();
+              // Periodically send state updates
+              setInterval(sendPlayerState, 1000);
             },
             onError: function (event) {
               notifyParent("error", { code: event.data, videoId: videoId });
               var errorEl = document.getElementById("error");
               errorEl.classList.add("visible");
-              errorEl.innerHTML =
-                "YouTube Error: " + event.data + "<br>Video: " + videoId;
+              errorEl.innerHTML = "YouTube Error: " + event.data + "<br>Video: " + videoId;
             },
             onStateChange: function (event) {
-              var states = {
-                "-1": "unstarted",
-                0: "ended",
-                1: "playing",
-                2: "paused",
-                3: "buffering",
-                5: "cued",
-              };
+              var states = { "-1": "unstarted", 0: "ended", 1: "playing", 2: "paused", 3: "buffering", 5: "cued" };
               notifyParent("stateChange", {
                 state: states[event.data] || event.data,
                 videoId: videoId,
