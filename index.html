@@ -54,6 +54,7 @@
         document.getElementById("error").classList.add("visible");
         document.getElementById("error").textContent =
           "Error: No video ID (?v=VIDEO_ID)";
+        throw new Error("No video ID");
       }
 
       function notifyParent(type, data) {
@@ -80,9 +81,11 @@
             3: "buffering",
             5: "cued",
           };
-          var videoData = window.ytPlayer.getVideoData ? window.ytPlayer.getVideoData() : {};
+          var videoData = window.ytPlayer.getVideoData
+            ? window.ytPlayer.getVideoData()
+            : {};
           var duration = window.ytPlayer.getDuration();
-          var isLive = !!(videoData.isLive) || duration === 0;
+          var isLive = !!videoData.isLive || duration === 0;
           notifyParent("playerState", {
             state: states[state] || "unknown",
             currentTime: window.ytPlayer.getCurrentTime(),
@@ -147,8 +150,11 @@
       tag.src = "https://www.youtube.com/iframe_api";
       document.head.appendChild(tag);
 
+      var playerStateInterval = null;
+
       function onYouTubeIframeAPIReady() {
         if (!videoId) return;
+        if (playerStateInterval) clearInterval(playerStateInterval);
 
         window.ytPlayer = new YT.Player("player", {
           width: "100%",
@@ -168,7 +174,7 @@
               notifyParent("ready", { videoId: videoId });
               event.target.playVideo();
               // Periodically send state updates
-              setInterval(sendPlayerState, 1000);
+              playerStateInterval = setInterval(sendPlayerState, 1000);
             },
             onError: function (event) {
               notifyParent("error", { code: event.data, videoId: videoId });
